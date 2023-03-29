@@ -1,4 +1,4 @@
-# 🦙🇹🇼Finetune LLaMA-7B with Chinese instruction datasets
+# 🦙🧋🇹🇼 Finetune LLaMA-7B with Chinese instruction datasets
 
 This repository is a tutorial for finetuning LLaMA-7B with Chinese datasets! 
 I survey and combine the dataset & method for finetuning my own LLM for complex NLP tasks such as summarization, question answering, text generation, custom data augmentation, etc. 
