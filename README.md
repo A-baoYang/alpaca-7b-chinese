@@ -14,6 +14,7 @@ $ pip install -r requirements.txt
 $ pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
 ```
 
+
 ## Dataset
 
 Combined all datasets using English-instruction, Chinese-output construction:
@@ -29,15 +30,20 @@ Combined all datasets using English-instruction, Chinese-output construction:
 
 2. Use `torchrun` for distributed training
 
-### Domain Tasks
+```bash
+$ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py
+```
+
+
+### Finetune Domain Tasks
 
 (In progress)
 
-1. 
+1. Social media chatbot
+
 
 ## Serving
 
-1. Provide FastAPI
+1. Provide Model API
 
-2. Provide Dash 
-
+2. Provide demo UI

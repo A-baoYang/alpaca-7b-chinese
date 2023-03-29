@@ -3,15 +3,11 @@ import sys
 from typing import List
 
 import bitsandbytes as bnb
-import fire
+import click
 import torch
 import torch.nn as nn
 import transformers
 from datasets import load_dataset
-
-assert (
-    "LlamaTokenizer" in transformers._import_structure["models.llama"]
-), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from peft import (
     LoraConfig,
     get_peft_model,
@@ -20,33 +16,68 @@ from peft import (
 )
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
+from .utils import generate_and_tokenize_prompt, generate_prompt, tokenize
 
-def train(
+
+@click.command()
+@click.option(
+    "--base_model",
+    "base_model",
+    type=str,
+    default="/home/jovyan/gpt/model/decapoda-research/llama-7b-hf",
+    required=True,
+)
+@click.option(
+    "--data_path",
+    "data_path",
+    type=str,
+    default="./data/alpaca-en-zh.json",
+    required=True,
+)
+@click.option(
+    "--output_dir",
+    "output_dir",
+    type=str,
+    default="./finetuned/llama-7b-hf_alpaca-en-zh",
+    required=True,
+)
+@click.option("--batch_size", "batch_size", type=int, default=128)
+@click.option("--micro_batch_size", "micro_batch_size", type=int, default=4)
+@click.option("--num_epochs", "num_epochs", type=int, default=20)
+@click.option("--learning_rate", "learning_rate", type=float, default=3e-4)
+@click.option("--cutoff_len", "cutoff_len", type=int, default=512)
+@click.option("--val_set_size", "val_set_size", type=int, default=2000)
+@click.option("--lora_r", "lora_r", type=int, default=8)
+@click.option("--lora_alpha", "lora_alpha", type=int, default=16)
+@click.option("--lora_dropout", "lora_dropout", type=float, default=0.05)
+@click.option(
+    "--lora_target_modules", "lora_target_modules", type=List[str], default=20
+)
+@click.option("--train_on_inputs", "train_on_inputs", type=bool, default=True)
+@click.option("--group_by_length", "group_by_length", type=bool, default=True)
+def main(
     # model/data params
-    base_model: str = "/home/jovyan/gpt/model/decapoda-research/llama-7b-hf",  # the only required argument
-    data_path: str = "./data/alpaca-zh-en-70k.json",
-    output_dir: str = "./finetuned/llama-7b-hf_alpaca-zh-en-70k",
+    base_model: str,
+    data_path: str,
+    output_dir: str,
     # training hyperparams
-    batch_size: int = 128,
-    micro_batch_size: int = 4,
-    num_epochs: int = 20,
-    learning_rate: float = 3e-4,
-    cutoff_len: int = 512,
-    val_set_size: int = 2000,
+    batch_size: int,
+    micro_batch_size: int,
+    num_epochs: int,
+    learning_rate: float,
+    cutoff_len: int,
+    val_set_size: int,
     # lora hyperparams
-    lora_r: int = 8,
-    lora_alpha: int = 16,
-    lora_dropout: float = 0.05,
-    lora_target_modules: List[str] = [
-        "q_proj",
-        "v_proj",
-    ],
+    lora_r: int,
+    lora_alpha: int,
+    lora_dropout: float,
+    lora_target_modules: List[str],
     # llm hyperparams
-    train_on_inputs: bool = True,  # if False, masks out inputs in loss
-    group_by_length: bool = True,  # faster, but produces an odd training loss curve
+    train_on_inputs: bool,
+    group_by_length: bool,
 ):
     print(
-        f"Training Alpaca-LoRA model with params:\n"
+        f"Finetune parameters: \n"
         f"base_model: {base_model}\n"
         f"data_path: {data_path}\n"
         f"output_dir: {output_dir}\n"
@@ -63,9 +94,6 @@ def train(
         f"train_on_inputs: {train_on_inputs}\n"
         f"group_by_length: {group_by_length}\n"
     )
-    assert (
-        base_model
-    ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
     gradient_accumulation_steps = batch_size // micro_batch_size
 
     device_map = "auto"
@@ -86,43 +114,6 @@ def train(
 
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
-
-    def tokenize(prompt, add_eos_token=True):
-        # there's probably a way to do this with the tokenizer settings
-        # but again, gotta move fast
-        result = tokenizer(
-            prompt,
-            truncation=True,
-            max_length=cutoff_len,
-            padding=False,
-            return_tensors=None,
-        )
-        if (
-            result["input_ids"][-1] != tokenizer.eos_token_id
-            and len(result["input_ids"]) < cutoff_len
-            and add_eos_token
-        ):
-            result["input_ids"].append(tokenizer.eos_token_id)
-            result["attention_mask"].append(1)
-
-        result["labels"] = result["input_ids"].copy()
-
-        return result
-
-    def generate_and_tokenize_prompt(data_point):
-        full_prompt = generate_prompt(data_point)
-        tokenized_full_prompt = tokenize(full_prompt)
-        if not train_on_inputs:
-            user_prompt = generate_prompt({**data_point, "output": ""})
-            tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
-            user_prompt_len = len(tokenized_user_prompt["input_ids"])
-
-            tokenized_full_prompt["labels"] = [
-                -100
-            ] * user_prompt_len + tokenized_full_prompt["labels"][
-                user_prompt_len:
-            ]  # could be sped up, probably
-        return tokenized_full_prompt
 
     model = prepare_model_for_int8_training(model)
 
@@ -188,31 +179,6 @@ def train(
 
     model.save_pretrained(output_dir)
 
-    print("\n If there's a warning about missing keys above, please disregard :)")
-
-
-def generate_prompt(data_point):
-    # sorry about the formatting disaster gotta move fast
-    if data_point["input"]:
-        return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-
-### Instruction:
-{data_point["instruction"]}
-
-### Input:
-{data_point["input"]}
-
-### Response:
-{data_point["output"]}"""
-    else:
-        return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-### Instruction:
-{data_point["instruction"]}
-
-### Response:
-{data_point["output"]}"""
-
 
 if __name__ == "__main__":
-    fire.Fire(train)
+    main()
