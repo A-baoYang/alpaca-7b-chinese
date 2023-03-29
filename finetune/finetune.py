@@ -14,7 +14,7 @@ from peft import (
     prepare_model_for_int8_training,
 )
 from transformers import LlamaForCausalLM, LlamaTokenizer
-from utils import generate_and_tokenize_prompt, generate_prompt, tokenize
+from utils import generate_prompt, tokenize
 
 
 @click.command()
@@ -123,6 +123,21 @@ def main(
     model = get_peft_model(model, config)
 
     data = load_dataset("json", data_files=data_path)
+
+
+    def generate_and_tokenize_prompt(data_point):
+        full_prompt = generate_prompt(data_point)
+        tokenized_full_prompt = tokenize(tokenizer, full_prompt, cutoff_len)
+        if not train_on_inputs:
+            user_prompt = generate_prompt({**data_point, "output": ""})
+            tokenized_user_prompt = tokenize(tokenizer, user_prompt, cutoff_len, add_eos_token=False)
+            user_prompt_len = len(tokenized_user_prompt["input_ids"])
+
+            tokenized_full_prompt["labels"] = [
+                -100
+            ] * user_prompt_len + tokenized_full_prompt["labels"][user_prompt_len:]
+        return tokenized_full_prompt
+
 
     if val_set_size > 0:
         train_val = data["train"].train_test_split(

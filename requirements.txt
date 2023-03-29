@@ -1,3 +1,4 @@
+opencc
 click
 datasets
 loralib
