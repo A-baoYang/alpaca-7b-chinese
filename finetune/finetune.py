@@ -1,6 +1,5 @@
 import os
 import sys
-from typing import List
 
 import bitsandbytes as bnb
 import click
@@ -15,8 +14,7 @@ from peft import (
     prepare_model_for_int8_training,
 )
 from transformers import LlamaForCausalLM, LlamaTokenizer
-
-from .utils import generate_and_tokenize_prompt, generate_prompt, tokenize
+from utils import generate_and_tokenize_prompt, generate_prompt, tokenize
 
 
 @click.command()
@@ -25,21 +23,18 @@ from .utils import generate_and_tokenize_prompt, generate_prompt, tokenize
     "base_model",
     type=str,
     default="/home/jovyan/gpt/model/decapoda-research/llama-7b-hf",
-    required=True,
 )
 @click.option(
     "--data_path",
     "data_path",
     type=str,
-    default="./data/alpaca-en-zh.json",
-    required=True,
+    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-en-zh.json",
 )
 @click.option(
     "--output_dir",
     "output_dir",
     type=str,
-    default="./finetuned/llama-7b-hf_alpaca-en-zh",
-    required=True,
+    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/finetuned/llama-7b-hf_alpaca-en-zh",
 )
 @click.option("--batch_size", "batch_size", type=int, default=128)
 @click.option("--micro_batch_size", "micro_batch_size", type=int, default=4)
@@ -51,7 +46,7 @@ from .utils import generate_and_tokenize_prompt, generate_prompt, tokenize
 @click.option("--lora_alpha", "lora_alpha", type=int, default=16)
 @click.option("--lora_dropout", "lora_dropout", type=float, default=0.05)
 @click.option(
-    "--lora_target_modules", "lora_target_modules", type=List[str], default=20
+    "--lora_target_modules", "lora_target_modules", type=list, default=["q_proj", "v_proj"]
 )
 @click.option("--train_on_inputs", "train_on_inputs", type=bool, default=True)
 @click.option("--group_by_length", "group_by_length", type=bool, default=True)
@@ -71,11 +66,11 @@ def main(
     lora_r: int,
     lora_alpha: int,
     lora_dropout: float,
-    lora_target_modules: List[str],
+    lora_target_modules: list,
     # llm hyperparams
     train_on_inputs: bool,
     group_by_length: bool,
-):
+):  
     print(
         f"Finetune parameters: \n"
         f"base_model: {base_model}\n"

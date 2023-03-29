@@ -46,4 +46,8 @@ $ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py
 
 1. Provide Model API
 
+    ![](https://i.imgur.com/lkJnZ92.png)
+
 2. Provide demo UI
+
+    ![](https://i.imgur.com/SnihV9H.png)
