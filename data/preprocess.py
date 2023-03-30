@@ -6,7 +6,7 @@ from opencc import OpenCC
 converter = OpenCC("s2twp")  # 轉換為繁體及台灣常用詞彙
 
 with open(
-    "/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-zhCN.json",
+    "./data/alpaca-en-zh.json",
     "r",
     encoding="utf-8",
 ) as f:
@@ -23,7 +23,7 @@ data = [
 random.shuffle(data)
 
 with open(
-    "/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-zhTW.json",
+    "./data/alpaca-en-zh.json",
     "w",
     encoding="utf-8",
 ) as f:

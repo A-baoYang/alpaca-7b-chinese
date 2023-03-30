@@ -11,8 +11,8 @@ class ModelServe:
     def __init__(
         self,
         load_8bit: bool = True,
-        base_model: str = "/home/jovyan/gpt/model/decapoda-research/llama-7b-hf",
-        finetuned_weights: str = "/home/jovyan/gpt/open_gpt/alpaca-lora/finetuned/llama-7b-hf_alpaca-zh",
+        base_model: str = "decapoda-research/llama-7b-hf",
+        finetuned_weights: str = "./finetuned/llama-7b-hf_alpaca-zh",
     ):
         if torch.cuda.is_available():
             self.device = "cuda"

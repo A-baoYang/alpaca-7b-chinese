@@ -22,19 +22,19 @@ from utils import generate_prompt, tokenize
     "--base_model",
     "base_model",
     type=str,
-    default="/home/jovyan/gpt/model/decapoda-research/llama-7b-hf",
+    default="decapoda-research/llama-7b-hf",
 )
 @click.option(
     "--data_path",
     "data_path",
     type=str,
-    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-en-zh.json",
+    default="./data/alpaca-en-zh.json",
 )
 @click.option(
     "--output_dir",
     "output_dir",
     type=str,
-    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/finetuned/llama-7b-hf_alpaca-en-zh",
+    default="./finetuned/llama-7b-hf_alpaca-en-zh",
 )
 @click.option("--batch_size", "batch_size", type=int, default=128)
 @click.option("--micro_batch_size", "micro_batch_size", type=int, default=4)
