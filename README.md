@@ -36,16 +36,11 @@ This repository combined all datasets using English-instruction, Chinese-output 
 
 ## Finetune
 
-1. Use finetune method provide by [tloen/alpaca-lora](https://github.com/tloen/alpaca-lora)
+Reference finetune method provide by [tloen/alpaca-lora](https://github.com/tloen/alpaca-lora) 
 
-- Run on 1 GPU
+1. Run on 1 GPU with Colab: https://colab.research.google.com/drive/1QvtrJpikkkNKSbwwG766SIGbBw2TQRd5?usp=sharing
 
-```bash
-$ cd finetune/
-$ finetune.py
-```
-
-- Use `torchrun` for distributed training on Multi-GPUs
+2. Use `torchrun` for distributed training on Multi-GPUs
 
 ```bash
 $ cd finetune/
