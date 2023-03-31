@@ -12,7 +12,7 @@ class ModelServe:
         self,
         load_8bit: bool = True,
         base_model: str = "decapoda-research/llama-7b-hf",
-        finetuned_weights: str = "./finetuned/llama-7b-hf_alpaca-zh",
+        finetuned_weights: str = "../finetuned/llama-7b-hf_alpaca-en-zh",
     ):
         if torch.cuda.is_available():
             self.device = "cuda"

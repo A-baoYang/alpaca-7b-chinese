@@ -38,9 +38,17 @@ This repository combined all datasets using English-instruction, Chinese-output 
 
 1. Use finetune method provide by [tloen/alpaca-lora](https://github.com/tloen/alpaca-lora)
 
-2. Use `torchrun` for distributed training
+- Run on 1 GPU
 
 ```bash
+$ cd finetune/
+$ finetune.py
+```
+
+- Use `torchrun` for distributed training on Multi-GPUs
+
+```bash
+$ cd finetune/
 $ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py
 ```
 
@@ -54,13 +62,23 @@ $ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py
 ## Model Serving
 To serve your own model service through API & simple website UI!
 
-1. Provide Model API
+1. Model API
 
     ![](https://i.imgur.com/lkJnZ92.png)
 
-2. Provide demo UI
+    ```bash
+    $ cd serve/
+    $ python api.py
+    ```
+
+2. demo UI
 
     ![](https://i.imgur.com/SnihV9H.png)
+
+    ```bash
+    $ cd serve/
+    $ python ui.py
+    ```
 
 
 ## Learn More 

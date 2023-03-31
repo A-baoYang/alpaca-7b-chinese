@@ -25,8 +25,8 @@ from utils import generate_prompt, tokenize
     default="decapoda-research/llama-7b-hf",
 )
 @click.option(
-    "--data_path",
-    "data_path",
+    "--data_dir",
+    "data_dir",
     type=str,
     default="./data/alpaca-en-zh.json",
 )
@@ -34,7 +34,7 @@ from utils import generate_prompt, tokenize
     "--output_dir",
     "output_dir",
     type=str,
-    default="./finetuned/llama-7b-hf_alpaca-en-zh",
+    default="../finetuned/llama-7b-hf_alpaca-en-zh",
 )
 @click.option("--batch_size", "batch_size", type=int, default=128)
 @click.option("--micro_batch_size", "micro_batch_size", type=int, default=4)
@@ -53,7 +53,7 @@ from utils import generate_prompt, tokenize
 def main(
     # model/data params
     base_model: str,
-    data_path: str,
+    data_dir: str,
     output_dir: str,
     # training hyperparams
     batch_size: int,
@@ -74,7 +74,7 @@ def main(
     print(
         f"Finetune parameters: \n"
         f"base_model: {base_model}\n"
-        f"data_path: {data_path}\n"
+        f"data_dir: {data_dir}\n"
         f"output_dir: {output_dir}\n"
         f"batch_size: {batch_size}\n"
         f"micro_batch_size: {micro_batch_size}\n"
@@ -122,7 +122,7 @@ def main(
     )
     model = get_peft_model(model, config)
 
-    data = load_dataset("json", data_files=data_path)
+    data = load_dataset("json", data_files=data_dir)
 
 
     def generate_and_tokenize_prompt(data_point):

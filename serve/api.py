@@ -1,8 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-
-# from flask_swagger_ui import get_swaggerui_blueprint
 from model import ModelServe
 from pydantic import BaseModel
 
@@ -10,7 +8,6 @@ app = FastAPI(
     title="Chinese Alpaca API",
     description="Run Alpaca with API",
     version="0.0.1",
-    
 )
 app.add_middleware(
     CORSMiddleware,
@@ -30,7 +27,7 @@ async def read_root():
 @app.post("/completion/")
 async def completion(
     instruction: str = Query(description="給模型的角色設定或指令", example="為用戶生成三種可能的投資標的建議", required=True), 
-    input: str = Query(description="給模型的 context 或輸入", example="用戶是剛畢業的碩士生"), 
+    input: str = Query(description="給模型的 context 或輸入", example="用戶是剛畢業的碩士生", default=None), 
 ):
     res = model.generate(instruction=instruction, input=input)
     return res
