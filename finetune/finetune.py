@@ -28,7 +28,7 @@ from utils import generate_prompt, tokenize
     "--data_dir",
     "data_dir",
     type=str,
-    default="./data/alpaca-en-zh.json",
+    default="../data/alpaca-en-zh.json",
 )
 @click.option(
     "--output_dir",
