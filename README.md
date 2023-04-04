@@ -89,9 +89,9 @@ See full list: [chatgpt-alternatives](https://github.com/A-baoYang/chatgpt-alter
 
 
 ```
-@misc{alpaca-cot,
+@misc{alpaca-7b-chinese,
   author = {JiunYi Yang},
-  title = {alpaca-7b-chinese: Finetune LLaMA-7B with Chinese instruction datasets},
+  title = {Alpaca-7B Chinese: Finetune LLaMA-7B with Chinese instruction datasets},
   year = {2023},
   publisher = {GitHub},
   journal = {GitHub repository},
