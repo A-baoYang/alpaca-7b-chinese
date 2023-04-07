@@ -86,3 +86,15 @@ I curated lots of method that try to run large language models with fewer GPU re
 ...
 
 See full list: [chatgpt-alternatives](https://github.com/A-baoYang/chatgpt-alternatives)
+
+
+```
+@misc{alpaca-7b-chinese,
+  author = {JiunYi Yang},
+  title = {Alpaca-7B Chinese: Finetune LLaMA-7B with Chinese instruction datasets},
+  year = {2023},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/A-baoYang/alpaca-7b-chinese}},
+}
+```
