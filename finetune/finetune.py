@@ -1,5 +1,6 @@
 import os
 import sys
+from collections import namedtuple
 
 import bitsandbytes as bnb
 import click
@@ -13,8 +14,73 @@ from peft import (
     get_peft_model_state_dict,
     prepare_model_for_int8_training,
 )
-from transformers import LlamaForCausalLM, LlamaTokenizer
-from utils import generate_prompt, tokenize
+from transformers import (
+    AutoModel,
+    AutoTokenizer,
+    BloomForCausalLM,
+    BloomTokenizerFast,
+    LlamaForCausalLM,
+    LlamaTokenizer,
+)
+from utils import PythonLiteralOption, generate_prompt, tokenize
+
+
+def decide_model(args, device_map):
+    ModelClass = namedtuple("ModelClass", ('tokenizer', 'model'))
+    _MODEL_CLASSES = {
+        "llama": ModelClass(**{
+            "tokenizer": LlamaTokenizer,
+            "model": LlamaForCausalLM,
+        }),
+        "chatglm": ModelClass(**{
+            "tokenizer": AutoTokenizer, #ChatGLMTokenizer,
+            "model":  AutoModel, #ChatGLMForConditionalGeneration,
+        }),
+        "bloom": ModelClass(**{
+            "tokenizer": BloomTokenizerFast,
+            "model": BloomForCausalLM,
+        }),
+        "Auto": ModelClass(**{
+            "tokenizer": AutoTokenizer,
+            "model": AutoModel,
+        })
+    }
+    model_type = "Auto" if args.model_type not in ["llama", "bloom", "chatglm"] else args.model_type
+    
+    if model_type == "chatglm":
+        tokenizer = _MODEL_CLASSES[model_type].tokenizer.from_pretrained(
+            args.base_model,
+            trust_remote_code=True
+        )
+        # todo: ChatGLMForConditionalGeneration revision
+        model = _MODEL_CLASSES[model_type].model.from_pretrained(
+            args.base_model,
+            trust_remote_code=True,
+            device_map=device_map
+        )
+    else:
+        tokenizer = _MODEL_CLASSES[model_type].tokenizer.from_pretrained(args.base_model)
+        model = _MODEL_CLASSES[model_type].model.from_pretrained(
+            args.base_model,
+            load_in_8bit=True,
+            device_map=device_map
+        )
+    if model_type == "llama":
+        tokenizer.pad_token_id = 0
+        tokenizer.padding_side = "left"  # Allow batched inference
+
+    model = prepare_model_for_int8_training(model)
+    config = LoraConfig(
+        r=args.lora_r,
+        lora_alpha=args.lora_alpha,
+        target_modules=args.lora_target_modules,
+        lora_dropout=args.lora_dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
+    model = get_peft_model(model, config)
+    model.print_trainable_parameters()
+    return tokenizer, model
 
 
 @click.command()
@@ -24,6 +90,7 @@ from utils import generate_prompt, tokenize
     type=str,
     default="decapoda-research/llama-7b-hf",
 )
+@click.option("--model_type", "model_type", type=str, default="llama")
 @click.option(
     "--data_dir",
     "data_dir",
@@ -46,13 +113,14 @@ from utils import generate_prompt, tokenize
 @click.option("--lora_alpha", "lora_alpha", type=int, default=16)
 @click.option("--lora_dropout", "lora_dropout", type=float, default=0.05)
 @click.option(
-    "--lora_target_modules", "lora_target_modules", type=list, default=["q_proj", "v_proj"]
+    "--lora_target_modules", "lora_target_modules", cls=PythonLiteralOption, default=["q_proj", "v_proj"], help="the module to be injected, e.g. q_proj/v_proj/k_proj/o_proj for llama, query_key_value for bloom"
 )
 @click.option("--train_on_inputs", "train_on_inputs", type=bool, default=True)
 @click.option("--group_by_length", "group_by_length", type=bool, default=True)
 def main(
     # model/data params
     base_model: str,
+    model_type: str,
     data_dir: str,
     output_dir: str,
     # training hyperparams
@@ -67,13 +135,14 @@ def main(
     lora_alpha: int,
     lora_dropout: float,
     lora_target_modules: list,
-    # llm hyperparams
+    # Trainer hyperparams
     train_on_inputs: bool,
     group_by_length: bool,
 ):  
     print(
         f"Finetune parameters: \n"
         f"base_model: {base_model}\n"
+        f"model_type: {model_type}\n"
         f"data_dir: {data_dir}\n"
         f"output_dir: {output_dir}\n"
         f"batch_size: {batch_size}\n"
@@ -89,8 +158,11 @@ def main(
         f"train_on_inputs: {train_on_inputs}\n"
         f"group_by_length: {group_by_length}\n"
     )
-    gradient_accumulation_steps = batch_size // micro_batch_size
+    args = locals()
+    namedtupler = namedtuple("args", tuple(list(args.keys())))
+    local_args = namedtupler(**args)
 
+    gradient_accumulation_steps = batch_size // micro_batch_size
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     ddp = world_size != 1
@@ -98,30 +170,7 @@ def main(
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
-    model = LlamaForCausalLM.from_pretrained(
-        base_model,
-        load_in_8bit=True,
-        torch_dtype=torch.float16,
-        device_map=device_map,
-    )
-
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
-
-    tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
-    tokenizer.padding_side = "left"  # Allow batched inference
-
-    model = prepare_model_for_int8_training(model)
-
-    config = LoraConfig(
-        r=lora_r,
-        lora_alpha=lora_alpha,
-        target_modules=lora_target_modules,
-        lora_dropout=lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, config)
-
+    tokenizer, model = decide_model(args=local_args, device_map=device_map)
     data = load_dataset("json", data_files=data_dir)
 
 
@@ -155,6 +204,7 @@ def main(
         eval_dataset=val_data,
         args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
+            per_device_eval_batch_size=micro_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
             warmup_steps=100,
             num_train_epochs=num_epochs,
@@ -170,6 +220,7 @@ def main(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
+            # deepspeed="/home/jovyan/gpt/open_gpt/gptuner/config/zero_stage3_offload_config.json"
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True

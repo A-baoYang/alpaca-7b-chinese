@@ -131,3 +131,4 @@ dmypy.json
 # project
 finetuned/
 flagged/
+data/

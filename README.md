@@ -40,18 +40,39 @@ Reference finetune method provide by [tloen/alpaca-lora](https://github.com/tloe
 
 1. Run on 1 GPU with Colab: https://colab.research.google.com/drive/1QvtrJpikkkNKSbwwG766SIGbBw2TQRd5?usp=sharing
 
+  - `LLaMA`
+    ```bash
+    $ cd finetune/
+    $ python finetune.py --base_model decapoda-research/llama-7b-hf --data_dir ../data/alpaca-en-zh.json --output_dir ../finetuned/llama-7b-hf_alpaca-en-zh --lora_target_modules '["q_proj", "v_proj"]'
+    ```
+  
+  - `BLOOM`
+    ```bash
+    $ cd finetune/
+    $ python finetune.py --base_model bigscience/bloomz-7b1-mt --data_dir ../data/alpaca-en-zh.json --output_dir ../finetuned/bloomz-7b1-mt_alpaca-en-zh --lora_target_modules '["query_key_value"]'
+    ```
+
 2. Use `torchrun` for distributed training on Multi-GPUs
 
-```bash
-$ cd finetune/
-$ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py
-```
+  - `LLaMA`
+    ```bash
+    $ cd finetune/
+    $ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py --base_model decapoda-research/llama-7b-hf --data_dir ../data/alpaca-en-zh.json --output_dir ../finetuned/llama-7b-hf_alpaca-en-zh --lora_target_modules '["q_proj", "v_proj"]'
+    ```
+
+  - `BLOOM`
+    ```bash
+    $ cd finetune/
+    $ torchrun --standalone --nnodes=1 --nproc_per_node=4 finetune.py --base_model bigscience/bloomz-7b1-mt --data_dir ../data/alpaca-en-zh.json --output_dir ../finetuned/bloomz-7b1-mt_alpaca-en-zh --lora_target_modules '["query_key_value"]'
+    ```
 
 ![](https://i.imgur.com/Czw3AAx.png)
 
 ### Finetune Domain Tasks
 
-(In progress, welcome to discuss together: `jiunyi.yang.abao@gmail.com`. I'd like to try tasks from different domains such as investment, fraud, e-commerce, law, healthcare, ...)
+I've collected different domain tasks in my repository: [instruction-finetune-datasets](https://github.com/A-baoYang/instruction-finetune-datasets)
+
+Welcome cooperations! Please contact me at: `jiunyi.yang.abao@gmail.com`. I'd like to try tasks from different domains such as investment, fraud, e-commerce, law, healthcare, ...
 
 
 ## Model Serving

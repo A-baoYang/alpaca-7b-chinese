@@ -1,3 +1,8 @@
+import ast
+
+import click
+
+
 def tokenize(tokenizer, prompt, cutoff_len, add_eos_token=True):
     # there's probably a way to do this with the tokenizer settings
     # but again, gotta move fast
@@ -16,6 +21,7 @@ def tokenize(tokenizer, prompt, cutoff_len, add_eos_token=True):
         result["input_ids"].append(tokenizer.eos_token_id)
         result["attention_mask"].append(1)
 
+    # result["labels"] = copy.deepcopy(result["input_ids"])
     result["labels"] = result["input_ids"].copy()
 
     return result
@@ -29,3 +35,12 @@ def generate_prompt(data_point):
     else:
         return ("以下是一個描述任務的指令。請撰寫一個能適當完成此任務指令的回覆\n\n"
         f'### 指令：\n{data_point["instruction"]}\n\n### 回覆：\n{data_point["output"]}')
+
+
+class PythonLiteralOption(click.Option):
+
+    def type_cast_value(self, ctx, value):
+        try:
+            return ast.literal_eval(value)
+        except:
+            raise click.BadParameter(value)
