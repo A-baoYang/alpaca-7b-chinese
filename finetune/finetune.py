@@ -1,3 +1,5 @@
+# code 須改版成 ChatGLM-6b 那種
+
 import os
 import sys
 from collections import namedtuple
@@ -5,11 +7,13 @@ from collections import namedtuple
 import bitsandbytes as bnb
 import click
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 import transformers
 from datasets import load_dataset
 from peft import (
     LoraConfig,
+    PeftModel,
     get_peft_model,
     get_peft_model_state_dict,
     prepare_model_for_int8_training,
@@ -21,8 +25,9 @@ from transformers import (
     BloomTokenizerFast,
     LlamaForCausalLM,
     LlamaTokenizer,
+    set_seed,
 )
-from utils import PythonLiteralOption, generate_prompt, tokenize
+from utils import PythonLiteralOption, check_distributed, generate_prompt, tokenize
 
 
 def decide_model(args, device_map):
@@ -52,7 +57,6 @@ def decide_model(args, device_map):
             args.base_model,
             trust_remote_code=True
         )
-        # todo: ChatGLMForConditionalGeneration revision
         model = _MODEL_CLASSES[model_type].model.from_pretrained(
             args.base_model,
             trust_remote_code=True,
@@ -88,23 +92,25 @@ def decide_model(args, device_map):
     "--base_model",
     "base_model",
     type=str,
-    default="decapoda-research/llama-7b-hf",
+    default="/home/jovyan/gpt/model/bigscience/bloomz-7b1-mt",
+    # default="decapoda-research/llama-7b-hf",
 )
-@click.option("--model_type", "model_type", type=str, default="llama")
+@click.option("--model_type", "model_type", type=str, default="bloom")
 @click.option(
     "--data_dir",
     "data_dir",
     type=str,
-    default="../data/alpaca-en-zh.json",
+    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/medical/medical-qa-instruction-zhtw-test.json",
+    # default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-en-zh.json",
 )
 @click.option(
     "--output_dir",
     "output_dir",
     type=str,
-    default="../finetuned/llama-7b-hf_alpaca-en-zh",
+    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/finetuned/bloom-7b1-mt_medical-qa-instruction",
 )
 @click.option("--batch_size", "batch_size", type=int, default=128)
-@click.option("--micro_batch_size", "micro_batch_size", type=int, default=4)
+@click.option("--micro_batch_size", "micro_batch_size", type=int, default=1)
 @click.option("--num_epochs", "num_epochs", type=int, default=20)
 @click.option("--learning_rate", "learning_rate", type=float, default=3e-4)
 @click.option("--cutoff_len", "cutoff_len", type=int, default=512)
@@ -113,7 +119,7 @@ def decide_model(args, device_map):
 @click.option("--lora_alpha", "lora_alpha", type=int, default=16)
 @click.option("--lora_dropout", "lora_dropout", type=float, default=0.05)
 @click.option(
-    "--lora_target_modules", "lora_target_modules", cls=PythonLiteralOption, default=["q_proj", "v_proj"], help="the module to be injected, e.g. q_proj/v_proj/k_proj/o_proj for llama, query_key_value for bloom"
+    "--lora_target_modules", "lora_target_modules", cls=PythonLiteralOption, default='["query_key_value"]', help="the module to be injected, e.g. q_proj/v_proj/k_proj/o_proj for llama, query_key_value for bloom"
 )
 @click.option("--train_on_inputs", "train_on_inputs", type=bool, default=True)
 @click.option("--group_by_length", "group_by_length", type=bool, default=True)
@@ -161,14 +167,24 @@ def main(
     args = locals()
     namedtupler = namedtuple("args", tuple(list(args.keys())))
     local_args = namedtupler(**args)
-
     gradient_accumulation_steps = batch_size // micro_batch_size
-    device_map = "auto"
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-    ddp = world_size != 1
-    if ddp:
-        device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
+
+    # setting torch distributed
+    set_seed(888)
+    rank, local_rank, world_size = check_distributed()
+    is_main_process = local_rank in [-1, 0]
+    is_distributed = world_size != -1
+    print(rank, local_rank, world_size, is_distributed)
+
+    if is_distributed:
+        torch.cuda.set_device(local_rank)
+        device = torch.device("cuda", local_rank)
+        dist.init_process_group("nccl")
+        device_map = {"": int(local_rank or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device_map = "auto"
 
     tokenizer, model = decide_model(args=local_args, device_map=device_map)
     data = load_dataset("json", data_files=data_dir)
@@ -218,7 +234,8 @@ def main(
             output_dir=output_dir,
             save_total_limit=3,
             load_best_model_at_end=True if val_set_size > 0 else False,
-            ddp_find_unused_parameters=False if ddp else None,
+            dataloader_num_workers=world_size if world_size > 0 else 0,
+            ddp_find_unused_parameters=False if is_distributed else None,
             group_by_length=group_by_length,
             # deepspeed="/home/jovyan/gpt/open_gpt/gptuner/config/zero_stage3_offload_config.json"
         ),
@@ -237,7 +254,6 @@ def main(
         model = torch.compile(model)
 
     trainer.train()
-
     model.save_pretrained(output_dir)
 
 
