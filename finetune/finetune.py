@@ -92,22 +92,21 @@ def decide_model(args, device_map):
     "--base_model",
     "base_model",
     type=str,
-    default="/home/jovyan/gpt/model/bigscience/bloomz-7b1-mt",
-    # default="decapoda-research/llama-7b-hf",
+    # default="/home/jovyan/gpt/model/bigscience/bloomz-7b1-mt",
+    default="decapoda-research/llama-7b-hf",
 )
-@click.option("--model_type", "model_type", type=str, default="bloom")
+@click.option("--model_type", "model_type", type=str, default="llama")
 @click.option(
     "--data_dir",
     "data_dir",
     type=str,
-    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/medical/medical-qa-instruction-zhtw-test.json",
-    # default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-en-zh.json",
+    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/data/alpaca-en-zh.json",
 )
 @click.option(
     "--output_dir",
     "output_dir",
     type=str,
-    default="/home/jovyan/gpt/open_gpt/alpaca-7b-chinese/finetuned/bloom-7b1-mt_medical-qa-instruction",
+    default="/home/jovyan/gpt/open_gpt/llama-7b-chinese/finetuned/alpaca-7b-chinese",
 )
 @click.option("--batch_size", "batch_size", type=int, default=128)
 @click.option("--micro_batch_size", "micro_batch_size", type=int, default=1)
@@ -119,7 +118,7 @@ def decide_model(args, device_map):
 @click.option("--lora_alpha", "lora_alpha", type=int, default=16)
 @click.option("--lora_dropout", "lora_dropout", type=float, default=0.05)
 @click.option(
-    "--lora_target_modules", "lora_target_modules", cls=PythonLiteralOption, default='["query_key_value"]', help="the module to be injected, e.g. q_proj/v_proj/k_proj/o_proj for llama, query_key_value for bloom"
+    "--lora_target_modules", "lora_target_modules", cls=PythonLiteralOption, default='["q_proj","v_proj"]', help="the module to be injected, e.g. q_proj/v_proj/k_proj/o_proj for llama, query_key_value for bloom"
 )
 @click.option("--train_on_inputs", "train_on_inputs", type=bool, default=True)
 @click.option("--group_by_length", "group_by_length", type=bool, default=True)
@@ -237,7 +236,6 @@ def main(
             dataloader_num_workers=world_size if world_size > 0 else 0,
             ddp_find_unused_parameters=False if is_distributed else None,
             group_by_length=group_by_length,
-            # deepspeed="/home/jovyan/gpt/open_gpt/gptuner/config/zero_stage3_offload_config.json"
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
