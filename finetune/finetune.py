@@ -1,5 +1,3 @@
-# code 須改版成 ChatGLM-6b 那種
-
 import os
 import sys
 from collections import namedtuple
