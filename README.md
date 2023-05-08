@@ -1,5 +1,7 @@
 # 🦙🧋🇹🇼 Finetune LLaMA-7B with Chinese instruction datasets
 
+> For more finetune methods for LLM, please see [LLM-Finetune-Guide](https://github.com/A-baoYang/LLM-Finetune-Guide)
+
 This repository is a tutorial for finetuning LLaMA-7B with Chinese datasets! 
 I survey and combine the dataset & method for finetuning my own LLM for complex NLP tasks such as summarization, question answering, text generation, custom data augmentation, etc. 
 
@@ -98,6 +100,8 @@ To serve your own model service through API & simple website UI!
 
 
 ## Learn More 
+
+I arranged finetune methods for LLM at [LLM-Finetune-Guide](https://github.com/A-baoYang/LLM-Finetune-Guide)
 
 I curated lots of method that try to run large language models with fewer GPU resources:
 
